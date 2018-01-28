@@ -16,7 +16,7 @@ class ViewController: UIViewController {
     }
     
 //    private var myDev : AVCaptureDevice?
-    private var currentCameraPosition = AVCaptureDevicePosition.back
+    private var currentCameraPosition = AVCaptureDevice.Position.back
     private let session = AVCaptureSession()
     private var videoPreviewLayer = AVCaptureVideoPreviewLayer()
     private var videoDeviceInput: AVCaptureDeviceInput!
@@ -27,14 +27,14 @@ class ViewController: UIViewController {
         // If we find a device we'll store it here for later use
         
         // Choose the back dual camera if available, otherwise default to a wide angle camera.
-        if let dualCameraDevice = AVCaptureDevice.defaultDevice(withDeviceType: .builtInDualCamera, mediaType: AVMediaTypeVideo, position: .back) {
+        if let dualCameraDevice = AVCaptureDevice.default(AVCaptureDevice.DeviceType.builtInDualCamera, for: AVMediaType.video, position: AVCaptureDevice.Position.back){
             defaultVideoDevice = dualCameraDevice
         }
-        else if let backCameraDevice = AVCaptureDevice.defaultDevice(withDeviceType: .builtInWideAngleCamera, mediaType: AVMediaTypeVideo, position: .back) {
+        else if let backCameraDevice = AVCaptureDevice.default(AVCaptureDevice.DeviceType.builtInWideAngleCamera, for: AVMediaType.video, position: AVCaptureDevice.Position.back) {
             // If the back dual camera is not available, default to the back wide angle camera.
             defaultVideoDevice = backCameraDevice
         }
-        else if let frontCameraDevice = AVCaptureDevice.defaultDevice(withDeviceType: .builtInWideAngleCamera, mediaType: AVMediaTypeVideo, position: .front) {
+        else if let frontCameraDevice = AVCaptureDevice.default(AVCaptureDevice.DeviceType.builtInWideAngleCamera, for: AVMediaType.video, position: AVCaptureDevice.Position.front) {
             // In some cases where users break their phones, the back wide angle camera is not available. In this case, we should default to the front wide angle camera.
             defaultVideoDevice = frontCameraDevice
         }
@@ -49,7 +49,7 @@ class ViewController: UIViewController {
     
     @IBOutlet var screenTap: UITapGestureRecognizer!
     
-    func tappedView() { //_ sender: UITapGestureRecognizer
+    @objc func tappedView() { //_ sender: UITapGestureRecognizer
         if let nextCamera = selectNextCamera(){
             startDeviceDisplay(device: nextCamera, rotation: AVCaptureVideoOrientation.portrait)
         }
@@ -57,21 +57,21 @@ class ViewController: UIViewController {
     
     private var nCamera = 0;
     func selectNextCamera() -> AVCaptureDevice?{
-        if let deviceDescoverySession = AVCaptureDeviceDiscoverySession.init(deviceTypes: [AVCaptureDeviceType.builtInWideAngleCamera,AVCaptureDeviceType.builtInDualCamera],
-                                                                          mediaType: AVMediaTypeVideo,
-                                                                          position: AVCaptureDevicePosition.unspecified){
+        let deviceDescoverySession = AVCaptureDevice.DiscoverySession.init(
+            deviceTypes: [AVCaptureDevice.DeviceType.builtInWideAngleCamera,AVCaptureDevice.DeviceType.builtInDualCamera],
+            mediaType: AVMediaType.video,
+            position: AVCaptureDevice.Position.unspecified)
             // Since we look at the count here again, we don't have to worry about the length of the list of devices changing (is that even possible?)
             nCamera = (nCamera + 1) % deviceDescoverySession.devices.count
             return deviceDescoverySession.devices[nCamera]
-        }
-        return defaultVideoDevice
+//        return defaultVideoDevice
     }
     
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
         super.viewWillTransition(to: size, with: coordinator)
         
         let deviceOrientation = UIDevice.current.orientation
-        guard let newVideoOrientation = deviceOrientation.videoOrientation, deviceOrientation.isPortrait || deviceOrientation.isLandscape else {
+        guard let _ = deviceOrientation.videoOrientation, deviceOrientation.isPortrait || deviceOrientation.isLandscape else {
             return
         }
         
@@ -126,17 +126,16 @@ class ViewController: UIViewController {
         do {
             for input in session.inputs {
                 // Remove any previous capture inputs
-                session.removeInput(input as! AVCaptureInput)
+                session.removeInput(input)
             }
             let input = try AVCaptureDeviceInput(device: device)
             if session.canAddInput(input){
                 session.addInput(input)
-                //                sessionOutput.setPreparedPhotoSettingsArray(AVCaptureSessionPresetHigh)
                 if session.canAddOutput(sessionOutput) {
                     session.addOutput(sessionOutput)
                     session.startRunning()
                     videoPreviewLayer = AVCaptureVideoPreviewLayer(session: session)
-                    videoPreviewLayer.videoGravity = AVLayerVideoGravityResizeAspectFill
+                    videoPreviewLayer.videoGravity = AVLayerVideoGravity.resizeAspectFill
                     videoPreviewLayer.position = CGPoint(x: self.previewView.frame.width / 2, y: self.previewView.frame.height / 2)
                     videoPreviewLayer.bounds = previewView.frame
                     previewView.layer.addSublayer(videoPreviewLayer)
@@ -150,25 +149,25 @@ class ViewController: UIViewController {
 
     
     private func maxResolutionPreset() -> String {
-        let allSessionPresets = [AVCaptureSessionPresetHigh,
-                                 AVCaptureSessionPresetPhoto,
-                                 AVCaptureSessionPreset3840x2160,
-                                 AVCaptureSessionPreset1920x1080,
-                                 AVCaptureSessionPreset1280x720,
-                                 AVCaptureSessionPresetiFrame1280x720,
-                                 AVCaptureSessionPresetMedium,
-                                 AVCaptureSessionPresetiFrame960x540,
-                                 AVCaptureSessionPreset640x480,
-                                 AVCaptureSessionPresetLow,
-                                 AVCaptureSessionPreset352x288]
+        let allSessionPresets = [AVCaptureSession.Preset.high,
+                                 AVCaptureSession.Preset.photo,
+                                 AVCaptureSession.Preset.hd4K3840x2160,
+                                 AVCaptureSession.Preset.hd1920x1080,
+                                 AVCaptureSession.Preset.hd1280x720,
+                                 AVCaptureSession.Preset.iFrame1280x720,
+                                 AVCaptureSession.Preset.medium,
+                                 AVCaptureSession.Preset.iFrame960x540,
+                                 AVCaptureSession.Preset.vga640x480,
+                                 AVCaptureSession.Preset.low,
+                                 AVCaptureSession.Preset.cif352x288]
         
         for sessionPreset in allSessionPresets {
             if session.canSetSessionPreset(sessionPreset) {
-                return sessionPreset
+                return sessionPreset.rawValue
             }
         }
         
-        return AVCaptureSessionPresetHigh
+        return AVCaptureSession.Preset.high.rawValue
     }
     
 //    func getDevice(discoverySession : AVCaptureDeviceDiscoverySession, devicePosition : AVCaptureDevicePosition) -> AVCaptureDevice{
@@ -405,10 +404,10 @@ class ViewController: UIViewController {
 //    }
 }
 
-extension AVCaptureDeviceDiscoverySession
+extension AVCaptureDevice.DiscoverySession
 {
     func uniqueDevicePositionsCount() -> Int {
-        var uniqueDevicePositions = [AVCaptureDevicePosition]()
+        var uniqueDevicePositions = [AVCaptureDevice.Position]()
         
         for device in devices {
             if !uniqueDevicePositions.contains(device.position) {
